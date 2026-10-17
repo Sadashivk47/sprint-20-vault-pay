@@ -1,0 +1,6 @@
+{
+  "name": "VaultPay Financial Core",
+  "description": "Secure B2B Invoicing & Payments Portal for Nexus Corporate Services with role-based access control and zero-trust API boundaries",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
