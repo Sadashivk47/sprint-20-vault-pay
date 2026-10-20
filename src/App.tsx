@@ -18,6 +18,7 @@ function AppContent() {
   const [forbiddenAttemptedPath, setForbiddenAttemptedPath] = useState<string>('/admin/invoices/create');
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
+  const [paymentSuccessBanner, setPaymentSuccessBanner] = useState<string | null>(null);
 
   // Requirement 5: Isolated QA / Evaluator tools (auto-opened if ?debug=true or ?evaluator=true)
   const [isEvaluatorToolsOpen, setIsEvaluatorToolsOpen] = useState(false);
@@ -26,6 +27,25 @@ function AppContent() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('debug') === 'true' || params.get('evaluator') === 'true' || params.get('qa') === 'true') {
       setIsEvaluatorToolsOpen(true);
+    }
+
+    // Handle Stripe redirect back: /invoices/:id?payment=success or ?payment=cancelled
+    const paymentStatus = params.get('payment');
+    const pathParts = window.location.pathname.split('/');
+    const invoiceIdxInPath = pathParts.indexOf('invoices');
+    const invoiceIdFromUrl = invoiceIdxInPath >= 0 ? pathParts[invoiceIdxInPath + 1] : null;
+
+    if (paymentStatus === 'success' && invoiceIdFromUrl) {
+      setSelectedInvoiceId(invoiceIdFromUrl);
+      setCurrentView('invoice-detail');
+      setPaymentSuccessBanner(`✅ Payment confirmed! Your invoice has been marked as PAID and a PDF receipt has been generated.`);
+      // Clean up URL without reloading
+      window.history.replaceState({}, '', `/invoices/${invoiceIdFromUrl}`);
+    } else if (paymentStatus === 'cancelled' && invoiceIdFromUrl) {
+      setSelectedInvoiceId(invoiceIdFromUrl);
+      setCurrentView('invoice-detail');
+      setPaymentSuccessBanner(`⚠️ Payment was cancelled. Your invoice is still unpaid.`);
+      window.history.replaceState({}, '', `/invoices/${invoiceIdFromUrl}`);
     }
   }, []);
 
@@ -87,6 +107,14 @@ function AppContent() {
         onToggleEvaluatorTools={() => setIsEvaluatorToolsOpen(!isEvaluatorToolsOpen)}
         isEvaluatorToolsOpen={isEvaluatorToolsOpen}
       />
+
+      {/* Payment success / cancel banner */}
+      {paymentSuccessBanner && (
+        <div className={`px-6 py-3 text-sm font-medium text-center ${paymentSuccessBanner.startsWith('✅') ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'}`}>
+          {paymentSuccessBanner}
+          <button onClick={() => setPaymentSuccessBanner(null)} className="ml-4 underline opacity-80 hover:opacity-100">Dismiss</button>
+        </div>
+      )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {currentView === '403' ? (

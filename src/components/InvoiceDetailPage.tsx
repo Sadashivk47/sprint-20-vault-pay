@@ -42,6 +42,39 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const [simulatingWebhook, setSimulatingWebhook] = useState(false);
   const [webhookMessage, setWebhookMessage] = useState<string | null>(null);
 
+  // PDF download state
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const handleDownloadPdf = async () => {
+    if (!invoice || downloadingPdf) return;
+    setDownloadingPdf(true);
+    setDownloadError(null);
+    try {
+      const token = localStorage.getItem('vaultpay_jwt_token');
+      const res = await fetch(`/api/invoices/${encodeURIComponent(invoice.id)}/pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Receipt-${invoice.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      setDownloadError(err instanceof Error ? err.message : 'Failed to download PDF');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   const loadInvoice = async () => {
     setLoading(true);
     setError(null);
@@ -288,23 +321,31 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                   )}
                 </button>
               ) : (
-                <a
-                  href={api.getPdfUrl(invoice.id)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer"
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={downloadingPdf}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Download Official Receipt (PDF)</span>
-                </a>
+                  {downloadingPdf ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Generating PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      <span>Download Official Receipt (PDF)</span>
+                    </>
+                  )}
+                </button>
               )}
             </div>
           </div>
 
-          {payError && (
+          {(payError || downloadError) && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{payError}</span>
+              <span>{payError || downloadError}</span>
             </div>
           )}
 

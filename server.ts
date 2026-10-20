@@ -1,3 +1,4 @@
+import 'dotenv/config'; // Load .env FIRST before any other imports
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
